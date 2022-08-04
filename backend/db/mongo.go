@@ -25,7 +25,10 @@ type Mongo struct {
 
 // RemoveGame removes the given game from the db
 func (db Mongo) RemoveGame(game models.Game) error {
+	log.Debug(fmt.Sprintf("Mongo removing Game: {name: %s, id: %s", game.Name, game.Id))
+
 	gc := db.database.Collection("games")
+	log.Debug("Mongo removing game...")
 	res, err := gc.DeleteOne(context.Background(), bson.M{
 		"name":         game.Name,
 		"author":       game.Developer,
@@ -42,12 +45,13 @@ func (db Mongo) RemoveGame(game models.Game) error {
 		log.Error("Mongo RemoveGame deleted more than one record")
 		return errors.New("mongo deleted more than one record")
 	}
-
+	log.Debug("Game removed.")
 	return nil
 }
 
 // GetGamesByTag search and return all games with given tag
 func (db Mongo) GetGamesByTag(s string) ([]models.Game, error) {
+	log.Debug("Mongo fetching games by Tag")
 	// Search for games containing tag
 	gc := db.database.Collection("games")
 	cur, err := gc.Find(context.Background(), bson.D{
@@ -73,6 +77,7 @@ func (db Mongo) GetGamesByTag(s string) ([]models.Game, error) {
 
 // GetGamesByTag search and return all games with given tag
 func (db Mongo) GetGamesByTags(tags []string, matchAll bool) ([]models.Game, error) {
+	log.Debug("Mongo fetching games by tags")
 	result, err := db.GetGamesByTag(tags[0])
 	if err != nil {
 		log.WithError(err).Error("Error getting games with tags")
@@ -141,14 +146,17 @@ func (db Mongo) GetGameByID(id string) (models.Game, error) {
 
 // AddGame add game to database. Returns assigned ID
 func (db Mongo) AddGame(game models.Game) (string, error) {
+	log.Debug("Mongo: Adding game to db")
 	insertResult, err := db.database.Collection("games").InsertOne(context.Background(), game)
 	if err != nil {
 		log.WithError(err).Error("Failed to add game to Mongo db")
 	}
+	log.Debug("Mongo: Successfully added game to db")
 	return insertResult.InsertedID.(primitive.ObjectID).Hex(), nil
 }
 
 func DecodeCursorToGame(cur *mongo.Cursor) (models.Game, error) {
+	log.Debug("Mongo: decoding cursor to game")
 	data := bson.M{}
 	err := cur.Decode(&data)
 	if err != nil {
@@ -160,6 +168,7 @@ func DecodeCursorToGame(cur *mongo.Cursor) (models.Game, error) {
 }
 
 func DecodeBsonData(data bson.M) (models.Game, error) {
+	log.Debug("Mongo: decoding tags")
 	// decode tags array
 	var tags []string
 	if data["tags"] != nil {
@@ -170,6 +179,7 @@ func DecodeBsonData(data bson.M) (models.Game, error) {
 		}
 	}
 
+	log.Debug("Mongo: decoding time stamp")
 	//decode creationDate
 	var date time.Time
 	var err error
@@ -184,6 +194,7 @@ func DecodeBsonData(data bson.M) (models.Game, error) {
 		}
 	}
 
+	log.Debug("Mongo: loading game with decoded data")
 	// load game model
 	game := models.Game{
 		Id:           data["_id"].(primitive.ObjectID).Hex(),
@@ -198,6 +209,7 @@ func DecodeBsonData(data bson.M) (models.Game, error) {
 }
 
 func (db Mongo) GetAllGames() ([]models.Game, error) {
+	log.Debug("Mongo: fetching all games")
 	games := make([]models.Game, 0)
 
 	gc := db.database.Collection("games")
